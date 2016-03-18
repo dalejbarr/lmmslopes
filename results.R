@@ -106,9 +106,6 @@ plot_results <- function(pdat, fname, nmc, ptitle, ylim = NULL,
            nitem = factor(nitem, rev(sort(unique(nitem)))),
            nsubj = factor(nsubj, rev(sort(unique(nsubj)))))
 
-    ## colorblind friendly palette
-    ## , "#0072B2", "#D55E00", "#CC79A7")
-    
     line_ann <- all_results %>%
     filter(analysis == "type_I") %>% group_by(nsubj, nitem) %>% slice(1) %>%
     ungroup() %>%
@@ -195,12 +192,10 @@ power_cfa %>% select(-type, -var) %>% spread(method, value) %>%
    mutate(maxdiff = ifelse(LRT > AIC, LRT, AIC) - Maximal) %>%
    arrange(desc(maxdiff))
 
-##all_power <- bind_rows(filter(power_c2n, var == "uncorrected"), power_cfa)
 all_power <- bind_rows(power_c2n, power_cfa) %>%
 mutate(var = factor(var, c("uncorrected", "corrected_for_anticonservativity",
                            "corrected_to_nominal")))
 
-## g_power <- plot_results(all_power %>% filter(var != "corrected_to_nominal"),
 g_power <- plot_results(all_power,
                         paste0(path, "/sim_power.pdf"), nmc, "Power",
                         hgt = 8)
