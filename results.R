@@ -200,9 +200,10 @@ all_power <- bind_rows(power_c2n, power_cfa) %>%
 mutate(var = factor(var, c("uncorrected", "corrected_for_anticonservativity",
                            "corrected_to_nominal")))
 
-g_power <- plot_results(all_power %>% filter(var != "corrected_to_nominal"),
+## g_power <- plot_results(all_power %>% filter(var != "corrected_to_nominal"),
+g_power <- plot_results(all_power,
                         paste0(path, "/sim_power.pdf"), nmc, "Power",
-                        hgt = 6)
+                        hgt = 8)
 
 ########################
 ## which model was selected
