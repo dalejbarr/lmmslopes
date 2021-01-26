@@ -5,4 +5,12 @@ ncores <- if ((parallel::detectCores() - 2L) < 1L) {
             parallel::detectCores() - 2L
           }
 
-cl <- parallel::makeCluster(ncores)
+if (Sys.getenv("USER") == "daleb" &&
+    grepl("daleb-pc$", Sys.getenv("STY"))) {
+  ncores <- rep(c("localhost", "chatter", "gossip", "yap"), each = 6L)
+  message("initializing ", length(ncores), " cores on ",
+          paste(unique(ncores), collapse = ", "))
+}
+
+cl <- parallel::makePSOCKcluster(ncores,
+                                 master = "daleb-pc", homogeneous = FALSE)
