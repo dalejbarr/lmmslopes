@@ -32,7 +32,7 @@ args <- if (!interactive()) {
 design_tbl <- crossing(
   tibble(nsubj = as.integer(args[1]),
          nitems = as.integer(args[2])),
-  tibble(eff_B = 50),
+  tibble(eff_B = 120),
   tibble(svar = seq(0, 120, 20)))
   
 nmc <- as.integer(args[3]) # number of monte carlo simulations
