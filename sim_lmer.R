@@ -25,22 +25,25 @@ if (length(args) == 4L) {
 }
 if (corr) {
   sample_info <- paste0(sample_pfx, "_corr")
-  todo <- design_tbl_corr
+  todo <- design_tbl_corr_A
 } else {
   sample_info <- paste0(sample_pfx, "_uncorr")
-  todo <- design_tbl_uncorr
+  todo <- design_tbl_uncorr_A
 }
 
 .junk <- clusterCall(cl, function() {library(dplyr)})
 clusterExport(cl, c("fit5", "make_data", "tryFit",
                     "tryUpdate", "get_chisq"))
 
-res <- pmap(todo, function(nsubj, nitems, eff_B, svar_subj, svar_item) {
+res <- pmap(todo, function(nsubj, nitems, eff_A, eff_B, svar_subj, svar_item) {
   message("running ", nmc, " runs of ",
-          nsubj, " subjects with ", nitems, " items and ",
+          nsubj, "S, ", nitems, "I; ",
+          "eff = c(A=", eff_A, ", B=", eff_B, "); ",
           "slope variance of (", svar_subj, ", ", svar_item, ")...")
   parSapply(cl, seq_len(nmc), function(.x) {
-    dat <- make_data(nsubj, nitems, eff_B = eff_B,
+    dat <- make_data(nsubj, nitems,
+                     eff_A = eff_A,
+                     eff_B = eff_B,
                      sv_subj = svar_subj, sv_item = svar_item)
     fit5(dat)
   })

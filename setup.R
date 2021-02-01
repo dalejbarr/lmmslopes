@@ -134,16 +134,18 @@ fit5 <- function(mcr.data, alpha = .2, test = "A") {
   result
 }
 
-design_tbl_corr <- crossing(
+design_tbl_corr_A <- crossing(
   tibble(nsubj = as.integer(args[1]),
          nitems = as.integer(args[2])),
-  tibble(eff_B = 120),
+  tibble(eff_A = c(0, 25),
+         eff_B = 0),
   tibble(svar_subj = seq(0, 120, 20),
          svar_item = seq(0, 120, 20)))
 
-design_tbl_uncorr <- crossing(
+design_tbl_uncorr_A <- crossing(
   tibble(nsubj = as.integer(args[1]),
          nitems = as.integer(args[2])),
-  tibble(eff_B = 120),
+  tibble(eff_A = c(0, 25),
+         eff_B = 0),
   tibble(svar_subj = seq(0, 120, 20)),
   tibble(svar_item = seq(0, 120, 20)))
