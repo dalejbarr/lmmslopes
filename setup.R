@@ -2,7 +2,7 @@ library("funfact") ## devtools::install_github("dalejbarr/funfact")
 library("tidyverse")
 library("parallel")
 
-make_data <- function(ns, ni, sv,
+make_data <- function(ns, ni, sv_subj, sv_item,
                       eff_A = 0, eff_B = 0,
                       r_sub = .6, r_itm = .6) {
   my_design <- list(ivs = list(A = 2L,
@@ -13,10 +13,10 @@ make_data <- function(ns, ni, sv,
 
   params <- funfact::gen_pop(my_design, ns)
   params$fixed[] <- c(2000, eff_A, eff_B, 0)
-  params$subj_rfx[, ] <- c(100^2, r_sub * 100 * sv,
-                           r_sub * 100 * sv, sv^2)
-  params$item_rfx[, ] <- c(100^2, r_itm * 100 * sv,
-                           r_itm * 100 * sv, sv^2)
+  params$subj_rfx[, ] <- c(100^2, r_sub * 100 * sv_subj,
+                           r_sub * 100 * sv_subj, sv_subj^2)
+  params$item_rfx[, ] <- c(100^2, r_itm * 100 * sv_item,
+                           r_itm * 100 * sv_item, sv_item^2)
   params$err_var <- 300^2
 
   funfact::sim_norm(my_design, ns, params) %>%
@@ -118,3 +118,16 @@ fit5 <- function(mcr.data, alpha = .2) {
   result
 }
 
+design_tbl_corr <- crossing(
+  tibble(nsubj = as.integer(args[1]),
+         nitems = as.integer(args[2])),
+  tibble(eff_B = 120),
+  tibble(svar_subj = seq(0, 120, 20),
+         svar_item = seq(0, 120, 20)))
+
+design_tbl_uncorr <- crossing(
+  tibble(nsubj = as.integer(args[1]),
+         nitems = as.integer(args[2])),
+  tibble(eff_B = 120),
+  tibble(svar_subj = seq(0, 120, 20)),
+  tibble(svar_item = seq(0, 120, 20)))
