@@ -55,12 +55,12 @@ get_chisq <- function(bigger, smaller) {
   deviance(smaller) - deviance(bigger)
 }
 
-fit5 <- function(mcr.data, alpha = .2) {
-  mods <- c(max = Y ~ BB2 + (AA2 | subj_id) + (AA2 | item_id),
-            nrc = Y ~ BB2 + (AA2 || subj_id) + (AA2 || item_id),
-            zis = Y ~ BB2 + (AA2 || subj_id) + (1 | item_id),
-            zss = Y ~ BB2 + (1 | subj_id) + (AA2 || item_id),
-            rio = Y ~ BB2 + (1 | subj_id) + (1 | item_id))
+fit5 <- function(mcr.data, alpha = .2, test = "A") {
+  mods <- c(max = Y ~ AA2 * BB2 + (AA2 | subj_id) + (AA2 | item_id),
+            nrc = Y ~ AA2 * BB2 + (AA2 || subj_id) + (AA2 || item_id),
+            zis = Y ~ AA2 * BB2 + (AA2 || subj_id) + (1 | item_id),
+            zss = Y ~ AA2 * BB2 + (1 | subj_id) + (AA2 || item_id),
+            rio = Y ~ AA2 * BB2 + (1 | subj_id) + (1 | item_id))
   res <- sapply(mods, tryFit, mcr.data, REML = FALSE, simplify = FALSE)
   conv <- sapply(res, function(x) x[["converged"]])
   mod_res <- sapply(res, function(x) x[["value"]])
@@ -69,16 +69,27 @@ fit5 <- function(mcr.data, alpha = .2) {
               LRT = NA_real_, LRT.ix = NA_real_)
 
   ## maximal
-  if (conv[["max"]]) {
+  if (test == "A") {
+    mod2 <- tryUpdate(. ~ . -AA2, mod_res[["max"]])
+  } else if (test == "B") {
     mod2 <- tryUpdate(. ~ . -BB2, mod_res[["max"]])
-    result["Max"] <- get_chisq(mod_res[["max"]], mod2[["value"]])
-  } else {}
+  } else {
+    stop("'test' must be 'A' or 'B'")
+  }
+  
+  result["Max"] <- get_chisq(mod_res[["max"]], mod2[["value"]])
 
   ## AIC competition
   aic_val <- sapply(res, function(x) AIC(x[["value"]]))
   aic_win <- which.min(aic_val)
   mod_aic <- res[[aic_win]]
-  mod_aic2 <- tryUpdate(. ~ . -BB2, mod_aic[["value"]])
+  if (test == "A") {
+    mod_aic2 <- tryUpdate(. ~ . -AA2, mod_aic[["value"]])
+  } else if (test == "B") {
+    mod_aic2 <- tryUpdate(. ~ . -BB2, mod_aic[["value"]])
+  } else {
+    stop("'test' must be 'A' or 'B'")
+  }
   
   result["AIC"] <- get_chisq(mod_aic[["value"]], mod_aic2[["value"]])
   result["AIC.ix"] <- aic_win
@@ -109,11 +120,16 @@ fit5 <- function(mcr.data, alpha = .2) {
               names(mods)[min(back_selection)]
             }
 
-  mod2 <- tryUpdate(. ~ . -BB2, res[[winner]]$value)
-  if (mod2[["converged"]]) {
-    result["LRT"] <- get_chisq(res[[winner]]$value, mod2[["value"]])
-    result["LRT.ix"] <- which(names(mods) == winner)
-  } else {}
+  if (test == "A") {
+    mod2 <- tryUpdate(. ~ . -AA2, res[[winner]]$value)
+  } else if (test == "B") {
+    mod2 <- tryUpdate(. ~ . -BB2, res[[winner]]$value)
+  } else {
+    stop("'test' must be 'A' or 'B'")
+  }
+  
+  result["LRT"] <- get_chisq(res[[winner]]$value, mod2[["value"]])
+  result["LRT.ix"] <- which(names(mods) == winner)
   
   result
 }
