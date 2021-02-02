@@ -94,13 +94,13 @@ modsel <- pow_results %>%
                names_sep = "_",
                values_to = "count")
 
-ggplot(pbys %>% filter(near(svar_subj, svar_item), !near(eff_A, 0)),
+ggplot(pbys %>% filter(near(svar_subj, svar_item), near(eff_A, 0)),
        aes(svar_subj, power, color = model)) +
   geom_point() +
   geom_line() +
   scale_x_continuous(breaks = seq(0, 120, 20))
 
-ggplot(modsel %>% filter(near(svar_subj, 0), !near(eff_A, 0)),
+ggplot(modsel %>% filter(near(eff_A, 0)),
         ## ggplot(modsel %>% filter(near(svar_subj, svar_item), near(eff_A, 0)),
        aes(svar_item, count, color = model)) +
   geom_point(aes(shape = model), alpha = .4, size = 2) +

@@ -1,48 +1,45 @@
-library("funfact") ## devtools::install_github("dalejbarr/funfact")
 library("tidyverse")
 library("parallel")
 
 ## for the design with one ws/wi factor (A)
 make_data_A <- function(ns, ni, sv_subj, sv_item,
                         eff_A = 0, eff_B = 0,
-                        r_sub = .6, r_itm = .6) {
+                        r_sub = .6, r_itm = .6, verbose = FALSE) {
 
-  my_design <- list(ivs = list(A = 2L),
-                    n_item = ni)
+  spad_n <- paste0("S%0", nchar(ns), "d")
+  spad_i <- paste0("I%0", nchar(ni), "d")
 
-  params <- funfact::gen_pop(my_design, ns)
-  params$fixed[] <- c(2000, eff_A)
-  params$subj_rfx[, ] <- c(100^2, r_sub * 100 * sv_subj,
-                           r_sub * 100 * sv_subj, sv_subj^2)
-  params$item_rfx[, ] <- c(100^2, r_itm * 100 * sv_item,
-                           r_itm * 100 * sv_item, sv_item^2)
-  params$err_var <- 300^2
+  scv <- matrix(c(100^2, r_sub * 100 * sv_subj,
+                  r_sub * 100 * sv_subj, sv_subj^2), nrow = 2)
+  srfx <- MASS::mvrnorm(ns, c(0, 0), Sigma = scv)
 
-  funfact::sim_norm(my_design, ns, params) %>%
-    funfact::with_dev_pred(iv_names = c("A"))
-}
+  sre <- tibble(subj_id = factor(sprintf(spad_n, seq_len(ns))),
+                sri = srfx[, 1],
+                srs = srfx[, 2])
 
-## design with A (ws/wi) and B (bs/bi)
-make_data_AB <- function(ns, ni, sv_subj, sv_item,
-                      eff_A = 0, eff_B = 0,
-                      r_sub = .6, r_itm = .6) {
-  
-  my_design <- list(ivs = list(A = 2L,
-                               B = 2L),
-                    between_subj = c("B"),
-                    between_item = c("B"),
-                    n_item = ni)
+  icv <- matrix(c(100^2, r_itm * 100 * sv_item,
+                  r_itm * 100 * sv_item, sv_item^2), nrow = 2)
 
-  params <- funfact::gen_pop(my_design, ns)
-  params$fixed[] <- c(2000, eff_A, eff_B, 0)
-  params$subj_rfx[, ] <- c(100^2, r_sub * 100 * sv_subj,
-                           r_sub * 100 * sv_subj, sv_subj^2)
-  params$item_rfx[, ] <- c(100^2, r_itm * 100 * sv_item,
-                           r_itm * 100 * sv_item, sv_item^2)
-  params$err_var <- 300^2
+  irfx <- MASS::mvrnorm(ni, c(0, 0), Sigma = icv)
 
-  funfact::sim_norm(my_design, ns, params) %>%
-    funfact::with_dev_pred(iv_names = c("A", "B"))
+  ire <- tibble(item_id = factor(sprintf(spad_i, seq_len(ni))),
+                iri = irfx[, 1],
+                irs = irfx[, 2])
+
+  trials <- crossing(sre, ire) %>%
+    mutate(A = factor(rep(rep(c("A1", "A2", "A2", "A1"), each = ni / 2), ns / 2)),
+           AA2 = if_else(A == "A1", -.5, +.5),
+           err = rnorm(ns * ni, 0, 300),
+           Y = 2000 + sri + iri +
+             (eff_A + srs + irs) * AA2 +
+             err)
+
+  if (verbose) {
+    trials
+  } else {
+    trials %>%
+      select(subj_id, item_id, A, AA2, Y)
+  }
 }
 
 ## compare the models named in 'comps'; return matrix
