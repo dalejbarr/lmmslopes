@@ -32,7 +32,7 @@ if (corr) {
 }
 
 .junk <- clusterCall(cl, function() {library(dplyr)})
-clusterExport(cl, c("fit5", "make_data_A", "make_data_AB",
+clusterExport(cl, c("fit5", "make_data_A", "make_data_AB", "compare_mods",
                     "tryFit", "tryUpdate", "get_chisq"))
 
 res <- pmap(todo, function(nsubj, nitems, eff_A, eff_B, svar_subj, svar_item,

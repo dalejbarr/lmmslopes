@@ -45,6 +45,19 @@ make_data_AB <- function(ns, ni, sv_subj, sv_item,
     funfact::with_dev_pred(iv_names = c("A", "B"))
 }
 
+## compare the models named in 'comps'; return matrix
+compare_mods <- function(comps, modfits) {
+  sapply(comps, function(.x) {
+    ms <- .x[["m"]]
+    this_df <- .x[["df"]]
+    m1 <- modfits[[ms[1]]]$value
+    m2 <- modfits[[ms[2]]]$value
+    devdiff <- deviance(m2) - deviance(m1)
+    c(chisq = devdiff,
+      p = pchisq(devdiff, df = this_df, lower.tail = FALSE))
+  })
+}
+
 tryFit <- function(tf.formula, tf.data, ...) {
   converged <- TRUE
   w.handler <- function(w) {
@@ -91,6 +104,7 @@ fit5 <- function(mcr.data, alpha = .2, test = "A") {
               zss = Y ~ AA2 + (1 | subj_id) + (AA2 || item_id),
               rio = Y ~ AA2 + (1 | subj_id) + (1 | item_id))
   }
+
   res <- sapply(mods, tryFit, mcr.data, REML = FALSE, simplify = FALSE)
   conv <- sapply(res, function(x) x[["converged"]])
   mod_res <- sapply(res, function(x) x[["value"]])
@@ -125,31 +139,36 @@ fit5 <- function(mcr.data, alpha = .2, test = "A") {
   result["AIC.ix"] <- aic_win
 
   ## LRT competition
-  comps <- list(nrc = list(m = c("max", "nrc"), df = 2L),
-                zis = list(m = c("nrc", "zis"), df = 1L),
-                zss = list(m = c("nrc", "zss"), df = 1L),
-                rio = list(m = c("zss", "rio"), df = 1L))
+  ## compare max to nrc
+  result <- compare_mods(list(list(m = c("max", "nrc"), df = 2L)), res)
 
-  lrt_ps <- sapply(comps, function(.x) {
-    ms <- .x[["m"]]
-    this_df <- .x[["df"]]
-    m1 <- res[[ms[1]]]$value
-    m2 <- res[[ms[2]]]$value
-    devdiff <- deviance(m2) - deviance(m1)
-    c(chisq = devdiff,
-      p = pchisq(devdiff, df = this_df, lower.tail = FALSE))
-  })
-
-  back_selection <- which(lrt_ps["p", ] < alpha)
-
-  winner <- if (length(back_selection) == 0L) {
-              ## random intercept wins
-              "rio"
-            } else {
-              ## calculate winner
-              names(mods)[min(back_selection)]
-            }
-
+  if (result["p", 1] > alpha) { ## reject max, test nrc
+    comps <- list(zis = list(m = c("nrc", "zis"), df = 1L),
+                  zss = list(m = c("nrc", "zss"), df = 1L),
+                  rio_zis = list(m = c("zis", "rio"), df = 1L),
+                  rio_zss = list(m = c("zss", "rio"), df = 1L))
+    result2 <- compare_mods(comps, res)
+    if (result2["p", "zis"] > alpha) { ## reject nrc; test zis against rio
+      if (result2["p", "rio_zis"] > alpha) {
+        winner <- "rio"
+      } else {
+        winner <- "zis"
+      }
+    } else { ## retain nrc; test nrc against zss/rio
+      if (result2["p", "zss"] > alpha) { ## reject nrc
+        if (result2["p", "rio_zss"] > alpha) {
+          winner <- "rio"
+        } else {
+          winner <- "zss"
+        }
+      } else {
+        winner <- "nrc"
+      }
+    }
+  } else { ## accept max
+    winner <- "max"
+  }
+  
   if (test == "A") {
     mod2 <- tryUpdate(. ~ . -AA2, res[[winner]]$value)
   } else if (test == "B") {
