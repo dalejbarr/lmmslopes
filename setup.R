@@ -140,9 +140,9 @@ fit5 <- function(mcr.data, alpha = .2, test = "A") {
 
   ## LRT competition
   ## compare max to nrc
-  result <- compare_mods(list(list(m = c("max", "nrc"), df = 2L)), res)
+  lrt_comp <- compare_mods(list(list(m = c("max", "nrc"), df = 2L)), res)
 
-  if (result["p", 1] > alpha) { ## reject max, test nrc
+  if (lrt_comp["p", 1] > alpha) { ## reject max, test nrc
     comps <- list(zis = list(m = c("nrc", "zis"), df = 1L),
                   zss = list(m = c("nrc", "zss"), df = 1L),
                   rio_zis = list(m = c("zis", "rio"), df = 1L),
