@@ -2,9 +2,31 @@ library("funfact") ## devtools::install_github("dalejbarr/funfact")
 library("tidyverse")
 library("parallel")
 
-make_data <- function(ns, ni, sv_subj, sv_item,
+## for the design with one ws/wi factor (A)
+make_data_A <- function(ns, ni, sv_subj, sv_item,
+                        eff_A = 0, eff_B = 0,
+                        r_sub = .6, r_itm = .6) {
+
+  my_design <- list(ivs = list(A = 2L),
+                    n_item = ni)
+
+  params <- funfact::gen_pop(my_design, ns)
+  params$fixed[] <- c(2000, eff_A)
+  params$subj_rfx[, ] <- c(100^2, r_sub * 100 * sv_subj,
+                           r_sub * 100 * sv_subj, sv_subj^2)
+  params$item_rfx[, ] <- c(100^2, r_itm * 100 * sv_item,
+                           r_itm * 100 * sv_item, sv_item^2)
+  params$err_var <- 300^2
+
+  funfact::sim_norm(my_design, ns, params) %>%
+    funfact::with_dev_pred(iv_names = c("A"))
+}
+
+## design with A (ws/wi) and B (bs/bi)
+make_data_AB <- function(ns, ni, sv_subj, sv_item,
                       eff_A = 0, eff_B = 0,
                       r_sub = .6, r_itm = .6) {
+  
   my_design <- list(ivs = list(A = 2L,
                                B = 2L),
                     between_subj = c("B"),
@@ -56,11 +78,19 @@ get_chisq <- function(bigger, smaller) {
 }
 
 fit5 <- function(mcr.data, alpha = .2, test = "A") {
-  mods <- c(max = Y ~ AA2 * BB2 + (AA2 | subj_id) + (AA2 | item_id),
-            nrc = Y ~ AA2 * BB2 + (AA2 || subj_id) + (AA2 || item_id),
-            zis = Y ~ AA2 * BB2 + (AA2 || subj_id) + (1 | item_id),
-            zss = Y ~ AA2 * BB2 + (1 | subj_id) + (AA2 || item_id),
-            rio = Y ~ AA2 * BB2 + (1 | subj_id) + (1 | item_id))
+  if (test == "B") {
+    mods <- c(max = Y ~ AA2 * BB2 + (AA2 | subj_id) + (AA2 | item_id),
+              nrc = Y ~ AA2 * BB2 + (AA2 || subj_id) + (AA2 || item_id),
+              zis = Y ~ AA2 * BB2 + (AA2 || subj_id) + (1 | item_id),
+              zss = Y ~ AA2 * BB2 + (1 | subj_id) + (AA2 || item_id),
+              rio = Y ~ AA2 * BB2 + (1 | subj_id) + (1 | item_id))
+  } else {
+    mods <- c(max = Y ~ AA2 + (AA2 | subj_id) + (AA2 | item_id),
+              nrc = Y ~ AA2 + (AA2 || subj_id) + (AA2 || item_id),
+              zis = Y ~ AA2 + (AA2 || subj_id) + (1 | item_id),
+              zss = Y ~ AA2 + (1 | subj_id) + (AA2 || item_id),
+              rio = Y ~ AA2 + (1 | subj_id) + (1 | item_id))
+  }
   res <- sapply(mods, tryFit, mcr.data, REML = FALSE, simplify = FALSE)
   conv <- sapply(res, function(x) x[["converged"]])
   mod_res <- sapply(res, function(x) x[["value"]])
@@ -76,7 +106,7 @@ fit5 <- function(mcr.data, alpha = .2, test = "A") {
   } else {
     stop("'test' must be 'A' or 'B'")
   }
-  
+
   result["Max"] <- get_chisq(mod_res[["max"]], mod2[["value"]])
 
   ## AIC competition
@@ -140,7 +170,10 @@ design_tbl_corr_A <- crossing(
   tibble(eff_A = c(0, 25),
          eff_B = 0),
   tibble(svar_subj = seq(0, 120, 20),
-         svar_item = seq(0, 120, 20)))
+         svar_item = seq(0, 120, 20))) %>%
+  mutate(func = "make_data_A",
+         alpha = .2,
+         test = "A")
 
 design_tbl_uncorr_A <- crossing(
   tibble(nsubj = as.integer(args[1]),
@@ -148,4 +181,9 @@ design_tbl_uncorr_A <- crossing(
   tibble(eff_A = c(0, 25),
          eff_B = 0),
   tibble(svar_subj = seq(0, 120, 20)),
-  tibble(svar_item = seq(0, 120, 20)))
+  tibble(svar_item = seq(0, 120, 20))) %>%
+  mutate(func = "make_data_A",
+         alpha = .2,
+         test = "A")
+
+## testing B: eff_B = c(0, 120)

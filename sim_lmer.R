@@ -32,20 +32,22 @@ if (corr) {
 }
 
 .junk <- clusterCall(cl, function() {library(dplyr)})
-clusterExport(cl, c("fit5", "make_data", "tryFit",
-                    "tryUpdate", "get_chisq"))
+clusterExport(cl, c("fit5", "make_data_A", "make_data_AB",
+                    "tryFit", "tryUpdate", "get_chisq"))
 
-res <- pmap(todo, function(nsubj, nitems, eff_A, eff_B, svar_subj, svar_item) {
+res <- pmap(todo, function(nsubj, nitems, eff_A, eff_B, svar_subj, svar_item,
+                           func, alpha, test) {
   message("running ", nmc, " runs of ",
           nsubj, "S, ", nitems, "I; ",
           "eff = c(A=", eff_A, ", B=", eff_B, "); ",
-          "slope variance of (", svar_subj, ", ", svar_item, ")...")
+          "slope variance of (", svar_subj, ", ", svar_item, "); ",
+          "'", func, "'...")
   parSapply(cl, seq_len(nmc), function(.x) {
-    dat <- make_data(nsubj, nitems,
-                     eff_A = eff_A,
-                     eff_B = eff_B,
-                     sv_subj = svar_subj, sv_item = svar_item)
-    fit5(dat)
+    dat <- do.call(func,
+                   list(ns = nsubj, ni = nitems,
+                        sv_subj = svar_subj, sv_item = svar_item,
+                        eff_A = eff_A, eff_B = eff_B))
+    fit5(dat, alpha = alpha, test = test)
   })
 })
 
