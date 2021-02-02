@@ -31,8 +31,11 @@ if (corr) {
   todo <- design_tbl_uncorr_A
 }
 
-.junk <- clusterCall(cl, function() {library(dplyr)})
-clusterExport(cl, c("fit5", "make_data_A", "make_data_AB", "compare_mods",
+.junk <- clusterCall(cl, function() {
+  library(dplyr)
+  library(tidyr)
+})
+clusterExport(cl, c("fit5", "make_data_A", "compare_mods",
                     "tryFit", "tryUpdate", "get_chisq"))
 
 res <- pmap(todo, function(nsubj, nitems, eff_A, eff_B, svar_subj, svar_item,
