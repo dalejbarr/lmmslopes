@@ -4,7 +4,8 @@ library("parallel")
 ## for the design with one ws/wi factor (A)
 make_data_A <- function(ns, ni, sv_subj, sv_item,
                         eff_A = 0, eff_B = 0,
-                        r_sub = .6, r_itm = .6, verbose = FALSE) {
+                        r_sub = .6, r_itm = .6,
+                        verbose = FALSE) {
 
   spad_n <- paste0("S%0", nchar(ns), "d")
   spad_i <- paste0("I%0", nchar(ni), "d")
@@ -26,10 +27,13 @@ make_data_A <- function(ns, ni, sv_subj, sv_item,
                 iri = irfx[, 1],
                 irs = irfx[, 2])
 
-  trials <- crossing(sre, ire) %>%
-    mutate(A = factor(rep(rep(c("A1", "A2", "A2", "A1"), each = ni / 2), ns / 2)),
+  trials <- tibble(subj_id = rep(sre[["subj_id"]], each = ni * 2),
+                   item_id = rep(ire[["item_id"]], times = ns * 2)) %>%
+    inner_join(sre, "subj_id") %>%
+    inner_join(ire, "item_id") %>%
+    mutate(A = factor(rep(rep(c("A1", "A2"), each = ni), times = ns)),
            AA2 = if_else(A == "A1", -.5, +.5),
-           err = rnorm(ns * ni, 0, 300),
+           err = rnorm(ns * ni * 2, 0, 300),
            Y = 2000 + sri + iri +
              (eff_A + srs + irs) * AA2 +
              err)
@@ -40,6 +44,17 @@ make_data_A <- function(ns, ni, sv_subj, sv_item,
     trials %>%
       select(subj_id, item_id, A, AA2, Y)
   }
+}
+
+make_data_AB <- function(ns, ni, sv_subj, sv_item,
+                         eff_A = 0, eff_B = 0,
+                         r_sub = .6, r_itm = .6,
+                         verbose = FALSE) {
+  make_data_A(ns, ni, sv_subj, sv_item,
+                     eff_A, eff_B, r_sub, r_itm, verbose) %>%
+    mutate(B = factor(rep(rep(c("B1", "B2"), each = ni), times = ns/2)),
+           BB2 = if_else(B == "B1", -.5, .5),
+           Y = Y + BB2 * eff_B)
 }
 
 ## compare the models named in 'comps'; return matrix
@@ -87,13 +102,13 @@ get_chisq <- function(bigger, smaller) {
   deviance(smaller) - deviance(bigger)
 }
 
-fit5 <- function(mcr.data, alpha = .2, test = "A") {
+allfit <- function(dat, test = "A") {
   if (test == "B") {
-    mods <- c(max = Y ~ AA2 * BB2 + (AA2 | subj_id) + (AA2 | item_id),
-              nrc = Y ~ AA2 * BB2 + (AA2 || subj_id) + (AA2 || item_id),
-              zis = Y ~ AA2 * BB2 + (AA2 || subj_id) + (1 | item_id),
-              zss = Y ~ AA2 * BB2 + (1 | subj_id) + (AA2 || item_id),
-              rio = Y ~ AA2 * BB2 + (1 | subj_id) + (1 | item_id))
+    mods <- c(max = Y ~ AA2 + BB2 + (AA2 | subj_id) + (AA2 | item_id),
+              nrc = Y ~ AA2 + BB2 + (AA2 || subj_id) + (AA2 || item_id),
+              zis = Y ~ AA2 + BB2 + (AA2 || subj_id) + (1 | item_id),
+              zss = Y ~ AA2 + BB2 + (1 | subj_id) + (AA2 || item_id),
+              rio = Y ~ AA2 + BB2 + (1 | subj_id) + (1 | item_id))
   } else {
     mods <- c(max = Y ~ AA2 + (AA2 | subj_id) + (AA2 | item_id),
               nrc = Y ~ AA2 + (AA2 || subj_id) + (AA2 || item_id),
@@ -102,8 +117,25 @@ fit5 <- function(mcr.data, alpha = .2, test = "A") {
               rio = Y ~ AA2 + (1 | subj_id) + (1 | item_id))
   }
 
-  res <- sapply(mods, tryFit, mcr.data, REML = FALSE, simplify = FALSE)
-  conv <- sapply(res, function(x) x[["converged"]])
+  sapply(mods, tryFit, dat, REML = FALSE, simplify = FALSE)
+}
+
+fit5 <- function(res, alpha = .2, test = "A") {
+  if (test == "B") {
+    mods <- c(max = Y ~ AA2 + BB2 + (AA2 | subj_id) + (AA2 | item_id),
+              nrc = Y ~ AA2 + BB2 + (AA2 || subj_id) + (AA2 || item_id),
+              zis = Y ~ AA2 + BB2 + (AA2 || subj_id) + (1 | item_id),
+              zss = Y ~ AA2 + BB2 + (1 | subj_id) + (AA2 || item_id),
+              rio = Y ~ AA2 + BB2 + (1 | subj_id) + (1 | item_id))
+  } else {
+    mods <- c(max = Y ~ AA2 + (AA2 | subj_id) + (AA2 | item_id),
+              nrc = Y ~ AA2 + (AA2 || subj_id) + (AA2 || item_id),
+              zis = Y ~ AA2 + (AA2 || subj_id) + (1 | item_id),
+              zss = Y ~ AA2 + (1 | subj_id) + (AA2 || item_id),
+              rio = Y ~ AA2 + (1 | subj_id) + (1 | item_id))
+  }
+
+  ##res <- sapply(mods, tryFit, mcr.data, REML = FALSE, simplify = FALSE)
   mod_res <- sapply(res, function(x) x[["value"]])
   result <- c(Max = NA_real_,
               AIC = NA_real_, AIC.ix = NA_real_,
@@ -202,4 +234,9 @@ design_tbl_uncorr_A <- crossing(
          alpha = .2,
          test = "A")
 
-## testing B: eff_B = c(0, 120)
+design_tbl_corr_B <- design_tbl_corr_A %>%
+  mutate(eff_B = if_else(eff_A == 25, 120, eff_A),
+         eff_A = 0,
+         func = "make_data_AB",
+         test = "B")
+

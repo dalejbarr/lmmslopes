@@ -70,7 +70,7 @@ plot_results <- function(pdat, fname, nmc, ptitle, ylim = NULL,
 
 
 if (interactive()) {
-  rfile <- "results_24_24_1000_lmer.rds"
+  rfile <- "results_30_10_10000_uncorr_lmer.rds"
 } else {
   rfile <- commandArgs(TRUE)[1]
 }
@@ -94,14 +94,24 @@ modsel <- pow_results %>%
                names_sep = "_",
                values_to = "count")
 
-ggplot(pbys %>% filter(near(svar_subj, svar_item), near(eff_A, 0)),
+corr <- pbys %>%
+  filter(near(svar_subj, svar_item))
+
+ggplot(corr %>% filter(near(eff_A, 0)),
+       aes(svar_subj, power, color = model)) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0, 120, 20)) +
+  coord_cartesian(ylim = c(0, .1))
+
+ggplot(corr %>% filter(near(eff_A, 25)),
        aes(svar_subj, power, color = model)) +
   geom_point() +
   geom_line() +
   scale_x_continuous(breaks = seq(0, 120, 20))
 
-ggplot(modsel %>% filter(near(eff_A, 0)),
-        ## ggplot(modsel %>% filter(near(svar_subj, svar_item), near(eff_A, 0)),
+##ggplot(modsel %>% filter(near(eff_A, 0)),
+ggplot(modsel %>% filter(near(svar_subj, svar_item), !near(eff_A, 0)),
        aes(svar_item, count, color = model)) +
   geom_point(aes(shape = model), alpha = .4, size = 2) +
   geom_line(alpha = .4) +
