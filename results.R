@@ -70,22 +70,28 @@ plot_results <- function(pdat, fname, nmc, ptitle, ylim = NULL,
 
 
 if (interactive()) {
-  rfile <- "results_30_10_10000_uncorr_lmer.rds"
+  rfile <- 
 } else {
   rfile <- commandArgs(TRUE)[1]
 }
 
-res <- readRDS(rfile)
+res <- bind_rows(readRDS("results_30_10_10000_A_uncorr_lmer.rds"),
+                 readRDS("results_50_20_10000_A_uncorr_lmer.rds"))
 
 pow_results <- res %>%
   mutate(map_df(results, get_results)) %>%
-  select(-results)
+  select(-results) %>%
+  mutate(simulation = factor(sprintf("%d subjects, %d items",
+                                     nsubj, nitems),
+                             levels = c("30 subjects, 10 items",
+                                        "50 subjects, 20 items")))
 
 pbys <- pow_results %>%
   select(nsubj:LRT) %>%
   pivot_longer(cols = c(Max, AIC, LRT),
                names_to = "model",
-               values_to = "power")
+               values_to = "power") %>%
+  select(-nsubj, -nitems, -eff_B, -test)
 
 modsel <- pow_results %>%
   select(-nmc, -Max, -AIC, -LRT) %>%
@@ -102,13 +108,15 @@ ggplot(corr %>% filter(near(eff_A, 0)),
   geom_point() +
   geom_line() +
   scale_x_continuous(breaks = seq(0, 120, 20)) +
-  coord_cartesian(ylim = c(0, .1))
+  coord_cartesian(ylim = c(0, .1)) +
+  facet_wrap(~simulation)
 
 ggplot(corr %>% filter(near(eff_A, 25)),
        aes(svar_subj, power, color = model)) +
   geom_point() +
   geom_line() +
-  scale_x_continuous(breaks = seq(0, 120, 20))
+  scale_x_continuous(breaks = seq(0, 120, 20)) +
+  facet_wrap(~simulation)
 
 ##ggplot(modsel %>% filter(near(eff_A, 0)),
 ggplot(modsel %>% filter(near(svar_subj, svar_item), !near(eff_A, 0)),
@@ -116,4 +124,4 @@ ggplot(modsel %>% filter(near(svar_subj, svar_item), !near(eff_A, 0)),
   geom_point(aes(shape = model), alpha = .4, size = 2) +
   geom_line(alpha = .4) +
   scale_x_continuous(breaks = seq(0, 120, 20)) +
-  facet_wrap(~criterion)
+  facet_wrap(simulation~criterion)
