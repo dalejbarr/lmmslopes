@@ -83,11 +83,11 @@ pow_results <- res %>%
   select(-results) %>%
   mutate(simulation = factor(sprintf("%d subjects, %d items",
                                      nsubj, nitems),
-                             levels = c("30 subjects, 10 items",
-                                        "50 subjects, 20 items")))
+                             levels = c("50 subjects, 20 items",
+                                        "30 subjects, 10 items")))
 
 pbys <- pow_results %>%
-  select(nsubj:LRT) %>%
+  select(nsubj:LRT, simulation) %>%
   pivot_longer(cols = c(Max, AIC, LRT),
                names_to = "model",
                values_to = "power") %>%
@@ -102,6 +102,16 @@ modsel <- pow_results %>%
 
 corr <- pbys %>%
   filter(near(svar_subj, svar_item))
+
+corr %>%
+  rename(slopes_var = svar_subj, p = power) %>%
+  mutate(technique = case_when(model == "Max" ~ "maximal",
+                               model == "AIC" ~ "model selection (AIC)",
+                               TRUE ~ "model selection (LRT)"),
+         analysis = if_else(near(eff_A, 0), "type I error", "power")) %>%
+  select(analysis, simulation, slopes_var, technique, p) %>%
+  arrange(simulation) %>%
+  saveRDS(file = "../manuscript/data/results_lmm.rds")
 
 ggplot(corr %>% filter(near(eff_A, 0)),
        aes(svar_subj, power, color = model)) +
